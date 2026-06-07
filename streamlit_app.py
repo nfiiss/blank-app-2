@@ -12,9 +12,9 @@ st.title("🌿 Sistem Evaluasi Baku Mutu Air Limbah")
 baku_mutu = {
     "pH_min": 6,
     "pH_max": 9,
-    "BOD": 50,
+    "BOD": 30,
     "COD": 100,
-    "TSS": 50,
+    "TSS": 30,
     "NH3": 10
 }
 
