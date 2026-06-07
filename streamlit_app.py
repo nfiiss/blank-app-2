@@ -1,6 +1,6 @@
 import streamlit as st
 import pandas as pd
-from datetime import datetime
+from datetime import date
 
 st.set_page_config(page_title="Evaluasi Baku Mutu Air Limbah", layout="wide")
 
@@ -12,14 +12,14 @@ st.title("🌿 Sistem Evaluasi Baku Mutu Air Limbah")
 baku_mutu = {
     "pH_min": 6,
     "pH_max": 9,
-    "BOD": 30,
+    "BOD": 50,
     "COD": 100,
-    "TSS": 30,
+    "TSS": 50,
     "NH3": 10
 }
 
 # =========================
-# INIT SESSION STATE (RIWAYAT)
+# INIT SESSION STATE
 # =========================
 if "data" not in st.session_state:
     st.session_state.data = []
@@ -27,7 +27,20 @@ if "data" not in st.session_state:
 # =========================
 # INPUT DATA
 # =========================
-st.subheader("📥 Input Data Pengujian")
+st.subheader("📥 Informasi Sampel")
+
+col1, col2, col3 = st.columns(3)
+
+with col1:
+    jenis_sampel = st.text_input("Jenis Sampel")
+
+with col2:
+    nama_penyampling = st.text_input("Nama Penyampling")
+
+with col3:
+    tanggal = st.date_input("Tanggal Pengambilan Sampel", value=date.today())
+
+st.subheader("📊 Data Hasil Analisis")
 
 col1, col2 = st.columns(2)
 
@@ -40,65 +53,72 @@ with col2:
     tss = st.number_input("TSS (mg/L)", value=0.0)
     nh3 = st.number_input("NH3-N (mg/L)", value=0.0)
 
-tanggal = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-
 # =========================
 # EVALUASI
 # =========================
-def cek(parameter, nilai, batas):
-    return nilai <= batas
-
 hasil = {
     "pH": baku_mutu["pH_min"] <= ph <= baku_mutu["pH_max"],
-    "BOD": cek("BOD", bod, baku_mutu["BOD"]),
-    "COD": cek("COD", cod, baku_mutu["COD"]),
-    "TSS": cek("TSS", tss, baku_mutu["TSS"]),
-    "NH3": cek("NH3", nh3, baku_mutu["NH3"])
+    "BOD": bod <= baku_mutu["BOD"],
+    "COD": cod <= baku_mutu["COD"],
+    "TSS": tss <= baku_mutu["TSS"],
+    "NH3": nh3 <= baku_mutu["NH3"]
 }
 
-jumlah_memenuhi = sum(hasil.values())
-total = len(hasil)
-
 # =========================
-# BUTTON PROSES
+# BUTTON ANALISIS
 # =========================
 if st.button("🔍 Analisis Data"):
 
     st.subheader("📊 Hasil Evaluasi")
+
+    parameter_tidak_memenuhi = []
 
     for k, v in hasil.items():
         if v:
             st.success(f"{k} → Memenuhi")
         else:
             st.error(f"{k} → Tidak Memenuhi")
+            parameter_tidak_memenuhi.append(k)
 
-    kepatuhan = (jumlah_memenuhi / total) * 100
+    # Status
+    if len(parameter_tidak_memenuhi) == 0:
+        status = "Memenuhi Baku Mutu"
+        st.success("✅ STATUS: MEMENUHI BAKU MUTU")
+    else:
+        status = "Tidak Memenuhi Baku Mutu"
+        st.error("❌ STATUS: TIDAK MEMENUHI BAKU MUTU")
 
-    st.metric("Tingkat Kepatuhan", f"{kepatuhan:.1f}%")
+        st.write("### ⚠ Parameter yang Melampaui Batas:")
+        for p in parameter_tidak_memenuhi:
+            st.write(f"- {p}")
+
+    # Persentase pelanggaran
+    persentase = (len(parameter_tidak_memenuhi) / len(hasil)) * 100
+    st.metric("Persentase Pelanggaran", f"{persentase:.1f}%")
 
     # =========================
-    # SIMPAN KE RIWAYAT
+    # SIMPAN RIWAYAT
     # =========================
     st.session_state.data.append({
         "Tanggal": tanggal,
+        "Jenis Sampel": jenis_sampel,
+        "Nama Penyampling": nama_penyampling,
         "pH": ph,
         "BOD": bod,
         "COD": cod,
         "TSS": tss,
         "NH3": nh3,
-        "Kepatuhan (%)": kepatuhan
+        "Status": status,
+        "Pelanggaran (%)": round(persentase, 1)
     })
 
 # =========================
-# RIWAYAT DATA
+# RIWAYAT
 # =========================
 st.subheader("📁 Riwayat Pengujian")
 
 if len(st.session_state.data) > 0:
     df = pd.DataFrame(st.session_state.data)
     st.dataframe(df, use_container_width=True)
-
-    st.subheader("📈 Grafik Tren Kepatuhan")
-    st.line_chart(df.set_index("Tanggal")["Kepatuhan (%)"])
 else:
-    st.info("Belum ada data pengujian.")
+    st.info("Belum ada data pengujian.") 
